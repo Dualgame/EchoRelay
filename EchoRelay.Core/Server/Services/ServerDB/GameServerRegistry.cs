@@ -62,8 +62,12 @@ namespace EchoRelay.Core.Server.Services.ServerDB
         #region Functions
         public RegisteredGameServer AddGameServer(RegisteredGameServer registeredGameServer)
         {
-            // Add the game server to our lookup
-            RegisteredGameServers[registeredGameServer.ServerId] = registeredGameServer;
+            // Add the game server to our lookup. A registration it replaces (same server id, e.g. a re-register on a new
+            // socket) no longer routes joins: drop that object's session id now, since its own removal will not find it.
+            RegisteredGameServer? replaced = null;
+            RegisteredGameServers.AddOrUpdate(registeredGameServer.ServerId, registeredGameServer, (_, old) => { replaced = old; return registeredGameServer; });
+            if (replaced != null && !ReferenceEquals(replaced, registeredGameServer))
+                RemoveSessionKey(replaced);
 
             // Fire the relevant event for the game server being registered.
             OnGameServerRegistered?.Invoke(registeredGameServer);
@@ -112,22 +116,22 @@ namespace EchoRelay.Core.Server.Services.ServerDB
                 RegisteredGameServersBySessionId.TryRemove(new KeyValuePair<Guid, RegisteredGameServer>(sessionId, registeredGameServer));
         }
 
+        /// <summary>
+        /// Unregisters this game server object. A newer registration under the same server id is left in place.
+        /// </summary>
         public void RemoveGameServer(RegisteredGameServer registeredGameServer)
         {
-            RemoveGameServer(registeredGameServer.ServerId);
+            RemoveSessionKey(registeredGameServer);
+            if (RegisteredGameServers.TryRemove(new KeyValuePair<ulong, RegisteredGameServer>(registeredGameServer.ServerId, registeredGameServer)))
+                OnGameServerUnregistered?.Invoke(registeredGameServer);
         }
+        /// <summary>
+        /// Unregisters whichever game server is registered under this server id.
+        /// </summary>
         public void RemoveGameServer(ulong serverId)
         {
-            // Try to remove any registered game server with this server identifier.
-            RegisteredGameServers.Remove(serverId, out var unregisteredGameServer);
-
-            // Fire the relevant event for the game server being registered.
-            if (unregisteredGameServer != null)
-            {
-                // Its current session id no longer routes joins (a send to its dead peer would throw).
-                RemoveSessionKey(unregisteredGameServer);
-                OnGameServerUnregistered?.Invoke(unregisteredGameServer);
-            }
+            if (GetGameServer(serverId) is RegisteredGameServer registeredGameServer)
+                RemoveGameServer(registeredGameServer);
         }
 
         public IEnumerable<RegisteredGameServer> FilterGameServers(int? findMax = null, ulong? serverId = null, Guid? sessionId = null,

@@ -78,5 +78,29 @@ namespace EchoRelay.Core.Test.ServerDB
             Assert.True(reg.RemoveSessionAlias(sid));
             Assert.False(reg.RemoveSessionAlias(sid));
         }
+        [Fact]
+        public void ReRegister_OldPeerRemoval_LeavesNewRegistration()
+        {
+            var reg = new GameServerRegistry();
+            var oldReg = reg.AddGameServer(NewServer(reg, 7));
+            Guid oldSid = FakeStart(reg, oldReg);
+            Guid link = Guid.NewGuid();
+            reg.AddSessionAlias(link, 7);
+            int unregistered = 0;
+            reg.OnGameServerUnregistered += _ => unregistered++;
+
+            var newReg = reg.AddGameServer(NewServer(reg, 7));   // same server id, new socket
+            Assert.Null(reg.GetGameServer(oldSid));              // the replaced object's session no longer routes
+            Assert.Same(newReg, reg.GetGameServer(link));        // the alias follows the server id
+
+            reg.RemoveGameServer(oldReg);                        // the half-open old socket finally closes
+
+            Assert.Same(newReg, reg.GetGameServer(7UL));
+            Assert.Equal(0, unregistered);
+
+            reg.RemoveGameServer(7UL);
+            Assert.Null(reg.GetGameServer(7UL));
+            Assert.Equal(1, unregistered);
+        }
     }
 }
