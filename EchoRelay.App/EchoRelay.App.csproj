@@ -8,6 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RepositoryUrl>https://github.com/Xenomega/EchoRelay</RepositoryUrl>
     <Authors>Xenomega (David Pokora)</Authors>
+    <!-- The .NET 9+ WinForms analyzer makes WFO1000 (designer serialization of public control properties) an
+         error; these properties are set in code, never by the designer. Upstream targeted net7.0, which had no such
+         analyzer. -->
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
