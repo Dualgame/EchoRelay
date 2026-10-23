@@ -8,7 +8,7 @@ default.
 EchoRelay.Headless [--port 777] [--storage-dir DIR] [--game-dir DIR] [--serverdb-api-key KEY] [--redeploy]
   [--invites true] [--invite-max-per-user 3]                      invite codes, see invites.md
   [--early-quit true] [--early-quit-mode shadow|enforce]          early quit, see protocol/early-quit.md
-    [--early-quit-policy FILE.json] [--early-quit-config FILE.json] [--early-quit-detect true]
+    [--early-quit-policy FILE.json] [--early-quit-config FILE.json] [--early-quit-detect false]
     [--early-quit-grace N] [--early-quit-flags 0xNN]
   [--early-quit-selftest]                                         run the policy self-test and exit
   [--lobby-settings FILE.json]                                    send SNSLobbySettingsResponse to clients

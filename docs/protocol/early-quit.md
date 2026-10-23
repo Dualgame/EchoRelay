@@ -63,12 +63,18 @@ own fixed text for that code, not the message string.
 
 ## Host behaviour (summary)
 
-- **Shadow mode is the default.** It detects quits, records them and logs what enforce would do. It refuses nothing
-  and shows no notices.
-- **Enforce** makes the lockout real.
+- **Start it** with `--early-quit true`. It is off without that flag.
+- **Shadow mode is the default** (`--early-quit-mode shadow`). It detects quits, records them and logs what enforce would
+  do. It refuses nothing and shows no notices.
+- **Enforce** (`--early-quit-mode enforce`, opt-in) makes the lockout real.
+- **Detection** feeds both modes and is on by default. `--early-quit-detect false` turns it off, so nothing is
+  recorded.
+- **Arrival pulse (enforce only):** login sends Flags `0x02`. Bit 5 (`0x22`) is held only while a player arrives in
+  a social lobby with a notice owed, until 2 s (`pulse_hold_sec`) after the client's LOAD_STATS, capped at
+  `arrival_max_sec` (120 s). The stock podium shows the notice only during that load.
 - **Quits are counted** over the last 20 public arena / combat matches (30-day cap). Warnings start at 3 quits and a
   lockout at 5. Lockouts run 5 min → 15 min → 1 h → 6 h → 24 h. Social, private, AI and spectating are never gated.
-- **Match completion is inferred** from the session end, not reported by the game server. Tune `grace` / `end_burst`
-  to your post-match timing before you use enforce.
+- **Match completion is inferred** from the session end, not reported by the game server. Tune `grace` (default
+  60 s) / `end_burst` (default 15 s) to your post-match timing before you use enforce.
 - **Every value is policy:** pass `--early-quit-policy FILE.json`.
 - **Self-test:** `--early-quit-selftest`.

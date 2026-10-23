@@ -14,7 +14,7 @@
 //   * --early-quit-mode shadow (default): detect, record, log ("shadow would lockout / refuse / pulse"), push the login
 //     sequence and Updates; no pulses, no refusals, and a would-be lockout is only a "lockout" row (reason shadow).
 //     enforce: the lockout is real, the gate refuses and the notice pulses.
-//   * Detection (--early-quit-detect true): public arena / combat sessions only. Accept time and TeamIndex per
+//   * Detection (on unless --early-quit-detect false): public arena / combat sessions only. Accept time and TeamIndex per
 //     (server, session, user) at OnPlayersAdded (the team comes from the user's last matching request, seen by the
 //     gate: Core clears the matching session before the accept); login-socket close times per user. A removal waits
 //     the grace, then EqClassifier.Classify on grace expiry / EndSession / server unregister; players still seated at

@@ -28,7 +28,7 @@
 //   leases an idle game server for a private session plus a /links alias; the control API mirrors GET /invites.
 // [--early-quit-selftest] (run the early-quit policy cases and exit)
 // [--early-quit true] [--early-quit-mode shadow|enforce] [--early-quit-policy FILE.json] [--early-quit-config FILE.json]
-//   [--early-quit-flags 0xNN] [--early-quit-detect true] [--early-quit-grace N] (off by default;
+//   [--early-quit-flags 0xNN] [--early-quit-detect false] [--early-quit-grace N] (off by default;
 //   uses Core MatchingService.MatchingGate): the services half of early quit (EarlyQuit.cs). Login push of Config / Flags / Update, v2
 //   store <storage-dir>/earlyquit_v2/, detection from game-server player removals (classified by EarlyQuitPolicy.cs),
 //   control API /early-quit/... Mode shadow (default) records and logs only; enforce refuses public arena / combat finds
@@ -230,7 +230,7 @@ if (opt.GetValueOrDefault("invites") is "true" or "on" or "1")
 if (opt.GetValueOrDefault("early-quit") is "true" or "on" or "1")
     EarlyQuit.Enable(server, Sym, Log, opt.GetValueOrDefault("early-quit-config"),
                      opt.GetValueOrDefault("early-quit-flags") is string ef ? Convert.ToByte(ef, 16) : null,
-                     opt.GetValueOrDefault("early-quit-detect") is "true" or "on" or "1",
+                     opt.GetValueOrDefault("early-quit-detect") is not ("false" or "off" or "0"), // on by default: shadow records from it
                      opt.GetValueOrDefault("early-quit-mode") ?? "shadow", opt.GetValueOrDefault("early-quit-policy"),
                      opt.GetValueOrDefault("early-quit-grace") is string eg ? int.Parse(eg) : null,
                      Path.Combine(storageDir, "earlyquit_v2"));
