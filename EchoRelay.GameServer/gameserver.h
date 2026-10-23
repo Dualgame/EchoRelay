@@ -60,4 +60,5 @@ public:
 	UINT16 tcpBroadcastPlayersAcceptedCBHandle; 
 	UINT16 tcpBroadcastPlayersRejectedCBHandle;
 	UINT16 tcpBroadcastSessionSuccessCBHandle;
+	UINT16 tcpBroadcastLobbySettingsCBHandle;
 };

@@ -88,6 +88,17 @@ namespace EchoVR
 	/// Receives/relays a local event on the broadcaster, triggering a listener.
 	/// </summary>
 	/// <returns>TODO: Unverified, probably success result.</returns>
+	// zlib-style uncompress used by the retail SNSLobbySettingsResponse / login-settings TCP handlers
+	// (call site 0x17df65 in handler 0x17dee0: dst, &dstLen, src, srcLen; returns 0 on success).
+	// From disassembly of PC build 6323983201049540.
+	typedef INT32 InflateBufferFunc(
+		VOID* dst,
+		UINT64* dstLen,
+		const VOID* src,
+		UINT64 srcLen
+	);
+	InflateBufferFunc* InflateBuffer = (InflateBufferFunc*)(g_GameBaseAddress + 0x152A910);
+
 	typedef UINT64 BroadcasterReceiveLocalEventFunc(
 		EchoVR::Broadcaster* broadcaster,
 		EchoVR::SymbolId messageId,

@@ -1,9 +1,13 @@
 #include <cstdio>
+#include <string>
+#include <vector>
 #include "pch.h"
 #include "echovr.h"
 #include "echovrunexported.h"
 #include "messages.h"
 #include "gameserver.h"
+
+static VOID ResetLobbySettings(); // lobby-settings relay, below
 
 /// <summary>
 /// A wrapper for WriteLog, simplifying logging operations.
@@ -110,6 +114,7 @@ VOID OnTcpMessageStartSession(GameServerLib* self, VOID* proxymthd, EchoVR::TcpP
 {
 	// Set our session to active.
 	self->sessionActive = TRUE;
+	ResetLobbySettings();
 
 	// Forward the received start session event to the internal broadcast.
 	Log(EchoVR::LogLevel::Info, "[ECHORELAY.GAMESERVER] Starting new session");
@@ -152,6 +157,76 @@ VOID OnTcpMsgSessionSuccessv5(GameServerLib* self, VOID* proxymthd, EchoVR::TcpP
 	// NOTE: For some reason, currently the session success message for servers parses differently than clients by some offset when setting packet encoding settings.
 	// To account for this, we shift the message pointer, and its size. This is non-problematic for the delegate proxy method wrapper, which only validates minimum size.
 	EchoVR::BroadcasterReceiveLocalEvent(self->broadcaster, SYMBOL_BROADCASTER_LOBBY_SESSION_SUCCESS_V5, "SNSLobbySessionSuccessv5", (CHAR*)msg - 0x10, msgSize + 0x10);
+}
+
+// ---- SNSLobbySettingsResponse relay ---------------------------------------------------------------------
+// A dedicated server registers only the LOCAL SNSLobbySettingsResponse listener (listener selection 0x1580bc, game
+// flag bit 2), so the TCP form from ServerDB is otherwise dropped. Retail's own TCP handler (0x17dee0) stores the
+// settings and then re-sends them on the game broadcaster to all peers (0x1a93e0: BroadcasterSend(sym_local, item=8
+// zero bytes, buffer=JSON, peer=AllPeers, dest=-1, prio=1.0f, -1)). We do the same: store locally, then broadcast,
+// and re-broadcast a few times whenever the entrant count changes (settings arrive with SessionSuccessv5, before the
+// client has connected to the broadcaster).
+static std::string g_lobbySettingsJson;
+static UINT64 g_lastEntrantCount = 0;
+static INT32 g_lobbySettingsResends = 0;
+static ULONGLONG g_lastLobbySettingsSendTick = 0;
+
+// A session's lobby settings must not leak into the next session on this server: clear the cache whenever a session
+// starts or ends. ServerDB sends the new session's settings after the start.
+static VOID ResetLobbySettings()
+{
+	g_lobbySettingsJson.clear();
+	g_lastEntrantCount = 0;
+	g_lobbySettingsResends = 0;
+	g_lastLobbySettingsSendTick = 0;
+}
+
+static VOID BroadcastLobbySettings(GameServerLib* self, const CHAR* reason)
+{
+	if (g_lobbySettingsJson.empty())
+		return;
+	UINT64 item = 0;
+	EchoVR::BroadcasterSend(self->broadcaster, SYMBOL_BROADCASTER_LOBBY_SETTINGS_RESPONSE, 0, &item, sizeof(item),
+		(VOID*)g_lobbySettingsJson.data(), g_lobbySettingsJson.size(), EchoVR::Peer_AllPeers, 0xFFFFFFFFFFFFFFFF, 1.0f,
+		(EchoVR::SymbolId)0xFFFFFFFFFFFFFFFF);
+	g_lastLobbySettingsSendTick = GetTickCount64();
+	Log(EchoVR::LogLevel::Info, "[ECHORELAY.GAMESERVER] Broadcast lobby settings to all peers (%s, %llu entrants)", reason, (UINT64)self->lobby->entrantData.count);
+}
+
+VOID OnTcpMsgLobbySettings(GameServerLib* self, VOID* proxymthd, EchoVR::TcpPeer sender, VOID* msg, VOID* unk, UINT64 msgSize)
+{
+	if (msgSize < 8)
+	{
+		Log(EchoVR::LogLevel::Error, "[ECHORELAY.GAMESERVER] Lobby settings message too short (%llu bytes)", msgSize);
+		return;
+	}
+	UINT64 jsonLen = *(UINT64*)msg;
+	if (jsonLen == 0 || jsonLen > 0x100000)
+	{
+		Log(EchoVR::LogLevel::Error, "[ECHORELAY.GAMESERVER] Lobby settings bad decompressed length %llu", jsonLen);
+		return;
+	}
+	std::vector<CHAR> json((SIZE_T)jsonLen + 1, 0);
+	UINT64 outLen = jsonLen;
+	INT32 rc = EchoVR::InflateBuffer(json.data(), &outLen, (CHAR*)msg + 8, msgSize - 8);
+	outLen &= 0xFFFFFFFF; // zlib uLongf is 32-bit on Win64
+	if (rc != 0 || outLen > jsonLen)
+	{
+		Log(EchoVR::LogLevel::Error, "[ECHORELAY.GAMESERVER] Lobby settings inflate failed (rc %d)", rc);
+		return;
+	}
+	while (outLen > 0 && json[(SIZE_T)outLen - 1] == 0)
+		outLen--;
+	g_lobbySettingsJson.assign(json.data(), (SIZE_T)outLen);
+	Log(EchoVR::LogLevel::Info, "[ECHORELAY.GAMESERVER] Lobby settings from ServerDB: %s", g_lobbySettingsJson.c_str());
+
+	// Local event: item (8 bytes) + plain JSON, as handler 0x17de60 expects.
+	std::vector<CHAR> local(8 + g_lobbySettingsJson.size(), 0);
+	memcpy(local.data() + 8, g_lobbySettingsJson.data(), g_lobbySettingsJson.size());
+	EchoVR::BroadcasterReceiveLocalEvent(self->broadcaster, SYMBOL_BROADCASTER_LOBBY_SETTINGS_RESPONSE, "SNSLobbySettingsResponse", local.data(), local.size());
+
+	BroadcastLobbySettings(self, "received");
+	g_lobbySettingsResends = 10;
 }
 
 /// <summary>
@@ -216,6 +291,7 @@ VOID* GameServerLib::Initialize(EchoVR::Lobby* lobby, EchoVR::Broadcaster* broad
 	this->tcpBroadcastPlayersAcceptedCBHandle = ListenForTcpBroadcasterMessage(this, SYMBOL_TCPBROADCASTER_LOBBY_PLAYERS_ACCEPTED, (VOID*)OnTcpMsgPlayersAccepted);
 	this->tcpBroadcastPlayersRejectedCBHandle = ListenForTcpBroadcasterMessage(this, SYMBOL_TCPBROADCASTER_LOBBY_PLAYERS_REJECTED, (VOID*)OnTcpMsgPlayersRejected);
 	this->tcpBroadcastSessionSuccessCBHandle = ListenForTcpBroadcasterMessage(this, SYMBOL_TCPBROADCASTER_LOBBY_SESSION_SUCCESS_V5, (VOID*)OnTcpMsgSessionSuccessv5);
+	this->tcpBroadcastLobbySettingsCBHandle = ListenForTcpBroadcasterMessage(this, SYMBOL_TCPBROADCASTER_LOBBY_SETTINGS_RESPONSE, (VOID*)OnTcpMsgLobbySettings);
 
 	// Log the interaction.
 	Log(EchoVR::LogLevel::Info, "[ECHORELAY.GAMESERVER] Initialized game server");
@@ -245,6 +321,19 @@ VOID GameServerLib::Terminate()
 /// <returns>None</returns>
 VOID GameServerLib::Update()
 {
+	// Re-broadcast cached lobby settings after entrants change (every 2 s, 10 times).
+	if (this->lobby->entrantData.count != g_lastEntrantCount)
+	{
+		g_lastEntrantCount = this->lobby->entrantData.count;
+		g_lobbySettingsResends = 10;
+	}
+	if (g_lobbySettingsResends > 0 && !g_lobbySettingsJson.empty() && g_lastEntrantCount > 0
+		&& GetTickCount64() - g_lastLobbySettingsSendTick > 2000)
+	{
+		g_lobbySettingsResends--;
+		BroadcastLobbySettings(this, "resend");
+	}
+
 	// TODO: This is temporary code to test if the profile JSON is updated (but not sent to server).
 	// If it is not updated in this structure, one of the "apply loadout" or "save loadout" operations may trigger the update?
 	for (int i = 0; i < this->lobby->entrantData.count; i++)
@@ -346,6 +435,7 @@ VOID GameServerLib::Unregister() {
 	EchoVR::TcpBroadcasterUnlisten(this->lobby->tcpBroadcaster, this->tcpBroadcastPlayersAcceptedCBHandle);
 	EchoVR::TcpBroadcasterUnlisten(this->lobby->tcpBroadcaster, this->tcpBroadcastPlayersRejectedCBHandle);
 	EchoVR::TcpBroadcasterUnlisten(this->lobby->tcpBroadcaster, this->tcpBroadcastSessionSuccessCBHandle);
+	EchoVR::TcpBroadcasterUnlisten(this->lobby->tcpBroadcaster, this->tcpBroadcastLobbySettingsCBHandle);
 
 	// Disconnect from server db.
 	this->tcpBroadcasterData->DestroyPeer(this->serverDbPeer);
@@ -361,6 +451,8 @@ VOID GameServerLib::Unregister() {
 /// </summary>
 /// <returns>None</returns>
 VOID GameServerLib::EndSession() {
+	ResetLobbySettings();
+
 	// If there is a running session, inform the websocket so it can track the state change.
 	if (sessionActive)
 	{
