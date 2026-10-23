@@ -1,0 +1,18 @@
+[Unit]
+Description=EchoRelay services, C# headless host (relay-community)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=__USER__
+WorkingDirectory=/opt/echorelay
+# Optional extra host args, e.g. ECHORELAY_ARGS=--lobby-settings /opt/echorelay/lobby_settings.json.
+EnvironmentFile=-/opt/echorelay/echorelay.env
+ExecStart=/opt/echorelay/bin/EchoRelay.Headless --port __PORT__ --storage-dir /opt/echorelay/storage $ECHORELAY_ARGS
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+Environment=DOTNET_CLI_TELEMETRY_OPTOUT=1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
