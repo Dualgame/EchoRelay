@@ -459,6 +459,9 @@ VOID GameServerLib::EndSession() {
 		ERLobbyEndSession message;
 		SendServerdbTcpMessage(this, SYMBOL_TCPBROADCASTER_LOBBY_END_SESSION, &message, sizeof(message));
 	}
+
+	// The session is over: lock / unlock / player-removal calls until the next start no longer reach ServerDB.
+	sessionActive = FALSE;
 	Log(EchoVR::LogLevel::Info, "[ECHORELAY.GAMESERVER] Signaling end of session");
 }
 
