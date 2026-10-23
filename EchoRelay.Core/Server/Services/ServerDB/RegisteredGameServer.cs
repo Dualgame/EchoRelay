@@ -256,9 +256,8 @@ namespace EchoRelay.Core.Server.Services.ServerDB
         }
         private async Task StartSessionInternal(XPlatformId requester, ERGameServerStartSession.LobbyType lobbyType, Guid channel, long? gameTypeSymbol, long? levelSymbol, ERGameServerStartSession.SessionSettings? settings, int? playerLimit = null)
         {
-            // Remove the previous session id from the parent registry's lookup.
-            if (SessionId != null)
-                Registry.RegisteredGameServersBySessionId.Remove(SessionId.Value, out _);
+            // Remove the previous session id from the parent registry's lookup (only if it still points at us).
+            Registry.RemoveSessionKey(this);
 
             // Set up our session variables
             SessionId = SecureGuidGenerator.Generate();
@@ -596,6 +595,10 @@ namespace EchoRelay.Core.Server.Services.ServerDB
         {
             // Lock throughout this method.
             await _accessLock.ExecuteLocked(() => {
+                // Remove the ended session's id from the registry's lookup, so a stale id cannot route a join into this
+                // server's next session. Session aliases (invite / link ids) live apart and are kept.
+                Registry.RemoveSessionKey(this);
+
                 // Reset all variables
                 SessionId = null;
                 SessionLobbyType = ERGameServerStartSession.LobbyType.Unassigned;

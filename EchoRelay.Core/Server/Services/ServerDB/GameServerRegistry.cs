@@ -12,6 +12,26 @@ namespace EchoRelay.Core.Server.Services.ServerDB
         public static readonly Guid ZeroGuid = new Guid("00000000-0000-0000-0000-000000000000");
         public ConcurrentDictionary<ulong, RegisteredGameServer> RegisteredGameServers { get; }
         public ConcurrentDictionary<Guid, RegisteredGameServer> RegisteredGameServersBySessionId { get; }
+        /// <summary>
+        /// Host-defined aliases (e.g. an invite or link GUID) that a join by id resolves to a game server, across that
+        /// server's sessions and re-registrations under the same server id. Kept apart from the session ids so that ending a
+        /// session can remove its id without touching an alias. See <see cref="AddSessionAlias"/>.
+        /// </summary>
+        public ConcurrentDictionary<Guid, SessionAlias> SessionAliases { get; }
+        #endregion
+
+        #region Types
+        /// <summary>
+        /// The session a join by alias starts on an idle game server (instead of one built from the join's own, usually
+        /// empty, gametype and level).
+        /// </summary>
+        public sealed record SessionStartParameters(LobbyType LobbyType, Guid Channel, long? GameTypeSymbol, long? LevelSymbol,
+            SessionSettings? Settings, int? PlayerLimit = null);
+        /// <summary>
+        /// An alias entry. <paramref name="IdleStart"/> is asked for start parameters when a join by this alias reaches the
+        /// server while it is idle; null (or a null result) refuses that join.
+        /// </summary>
+        public sealed record SessionAlias(ulong ServerId, Func<SessionStartParameters?>? IdleStart);
         #endregion
 
         #region Events
@@ -35,6 +55,7 @@ namespace EchoRelay.Core.Server.Services.ServerDB
         {
             RegisteredGameServers = new ConcurrentDictionary<ulong, RegisteredGameServer>();
             RegisteredGameServersBySessionId = new ConcurrentDictionary<Guid, RegisteredGameServer>();
+            SessionAliases = new ConcurrentDictionary<Guid, SessionAlias>();
         }
         #endregion
 
@@ -55,10 +76,40 @@ namespace EchoRelay.Core.Server.Services.ServerDB
             return registeredGameServer;
         }
 
+        /// <summary>
+        /// Resolves a session id, or else a session alias, to a game server.
+        /// </summary>
         public RegisteredGameServer? GetGameServer(Guid sessionId)
         {
-            RegisteredGameServersBySessionId.TryGetValue(sessionId, out RegisteredGameServer? registeredGameServer);
-            return registeredGameServer;
+            if (RegisteredGameServersBySessionId.TryGetValue(sessionId, out RegisteredGameServer? registeredGameServer))
+                return registeredGameServer;
+            if (SessionAliases.TryGetValue(sessionId, out SessionAlias? alias))
+                return GetGameServer(alias.ServerId);
+            return null;
+        }
+
+        /// <summary>
+        /// Adds or replaces an alias for a game server (by server id, so it follows a re-registration). Fails if the GUID
+        /// is a live session id of another game server.
+        /// </summary>
+        /// <param name="idleStart">Start parameters for a join by this alias that finds the server idle; null refuses such joins.</param>
+        public bool AddSessionAlias(Guid alias, ulong serverId, Func<SessionStartParameters?>? idleStart = null)
+        {
+            if (RegisteredGameServersBySessionId.TryGetValue(alias, out RegisteredGameServer? owner) && owner.ServerId != serverId)
+                return false;
+            SessionAliases[alias] = new SessionAlias(serverId, idleStart);
+            return true;
+        }
+        public bool RemoveSessionAlias(Guid alias) => SessionAliases.TryRemove(alias, out _);
+        public SessionAlias? GetSessionAlias(Guid alias) => SessionAliases.TryGetValue(alias, out SessionAlias? a) ? a : null;
+
+        /// <summary>
+        /// Removes the registry's session-id key for this game server's current session, if it still points at this object.
+        /// </summary>
+        internal void RemoveSessionKey(RegisteredGameServer registeredGameServer)
+        {
+            if (registeredGameServer.SessionId is Guid sessionId)
+                RegisteredGameServersBySessionId.TryRemove(new KeyValuePair<Guid, RegisteredGameServer>(sessionId, registeredGameServer));
         }
 
         public void RemoveGameServer(RegisteredGameServer registeredGameServer)
@@ -72,7 +123,11 @@ namespace EchoRelay.Core.Server.Services.ServerDB
 
             // Fire the relevant event for the game server being registered.
             if (unregisteredGameServer != null)
+            {
+                // Its current session id no longer routes joins (a send to its dead peer would throw).
+                RemoveSessionKey(unregisteredGameServer);
                 OnGameServerUnregistered?.Invoke(unregisteredGameServer);
+            }
         }
 
         public IEnumerable<RegisteredGameServer> FilterGameServers(int? findMax = null, ulong? serverId = null, Guid? sessionId = null,

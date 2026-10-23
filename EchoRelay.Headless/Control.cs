@@ -323,31 +323,25 @@ static class ControlApi
         return sent;
     }
 
-    // link GUID -> game server id; the registry key itself is what matching reads.
-    static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, ulong> Links = new();
-
-    // Shared with Invites.cs: make `link` an extra registry key of g, or drop it again.
-    internal static void AliasLink(Server server, RegisteredGameServer g, Guid link)
+    // Shared with Invites.cs. Links are Core session aliases (GameServerRegistry.SessionAliases): they resolve to the
+    // game server by server id, across its sessions, and are not removed when a session ends (the session's id is).
+    internal static void AliasLink(Server server, RegisteredGameServer g, Guid link,
+        Func<GameServerRegistry.SessionStartParameters?>? idleStart = null)
     {
-        server.ServerDBService.Registry.RegisteredGameServersBySessionId[link] = g;
-        Links[link] = g.ServerId;
+        if (!server.ServerDBService.Registry.AddSessionAlias(link, g.ServerId, idleStart))
+            throw new HttpError(400, $"{link} is a live session id of another game server");
     }
-    internal static bool UnaliasLink(Server server, Guid link)
-    {
-        if (!Links.TryRemove(link, out _)) return false;
-        server.ServerDBService.Registry.RegisteredGameServersBySessionId.TryRemove(link, out _);
-        return true;
-    }
+    internal static bool UnaliasLink(Server server, Guid link) => server.ServerDBService.Registry.RemoveSessionAlias(link);
 
     static JToken ListLinks(Server server)
     {
         var reg = server.ServerDBService.Registry;
-        return new JArray(Links.OrderBy(kv => kv.Key).Select(kv =>
+        return new JArray(reg.SessionAliases.OrderBy(kv => kv.Key).Select(kv =>
         {
-            var g = reg.GetGameServer(kv.Value);
+            var g = reg.GetGameServer(kv.Value.ServerId);
             return new JObject
             {
-                ["link"] = kv.Key.ToString(), ["server"] = kv.Value.ToString(),
+                ["link"] = kv.Key.ToString(), ["server"] = kv.Value.ServerId.ToString(),
                 ["session_id"] = g?.SessionId?.ToString(), ["live"] = g != null,
             };
         }));
@@ -359,9 +353,6 @@ static class ControlApi
         string? given = (string?)b["link"];
         Guid link = given == null ? Guid.NewGuid()
             : Guid.TryParse(given, out Guid x) ? x : throw new HttpError(400, $"bad link GUID {given}");
-        var reg = server.ServerDBService.Registry;
-        if (reg.RegisteredGameServersBySessionId.TryGetValue(link, out var other) && other != g && !Links.ContainsKey(link))
-            throw new HttpError(400, $"{link} is a live session id of game server {other.ServerId}");
         AliasLink(server, g, link);
         log($"[CONTROL] link {link} -> game server {g.ServerId} (current session {g.SessionId})");
         return new JObject { ["link"] = link.ToString(), ["server"] = g.ServerId.ToString(), ["session_id"] = g.SessionId?.ToString() };
