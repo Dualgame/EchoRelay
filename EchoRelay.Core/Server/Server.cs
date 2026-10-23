@@ -221,12 +221,26 @@ namespace EchoRelay.Core.Server
                     HttpListenerContext listenerContext = await listener.GetContextAsync().WaitAsync(_cancellationTokenSource.Token);
 
                     // Verify the request is a web socket request
-                    if (!listenerContext.Request.IsWebSocketRequest)
+                    bool isWebSocketRequest;
+                    try
                     {
-                        // Return a bad request HTTP status code.
-                        listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                        listenerContext.Response.Close();
-
+                        isWebSocketRequest = listenerContext.Request.IsWebSocketRequest;
+                        if (!isWebSocketRequest)
+                        {
+                            // Return a bad request HTTP status code.
+                            listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                            listenerContext.Response.Close();
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        // A malformed request (e.g. a bodyless POST that HttpListener already answered with 411) can leave
+                        // a context whose members throw. Drop it rather than let the exception end this accept loop.
+                        Console.WriteLine($"[HTTP] dropped malformed request: {e.GetType().Name}: {e.Message}");
+                        continue;
+                    }
+                    if (!isWebSocketRequest)
+                    {
                         // TODO: Log the interaction.
 
                         // Do not accept this client.
