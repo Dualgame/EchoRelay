@@ -57,8 +57,14 @@ namespace EchoRelay.Core.Server.Messages.ServerDB
             io.Stream(ref ServerId);
             io.Stream(ref InternalAddress, ByteOrder.BigEndian);
             io.Stream(ref Port);
-            ushort pad2 = 0; // 2 bytes of padding
+            // EchoRelay.GameServer sends its naturally aligned C++ struct ERLobbyRegistrationRequest
+            // {u64 serverId; u32 internalIp; u16 port; BYTE padding[4]; SymbolId regionId; SymbolId versionLock;}
+            // (40 bytes), so regionId sits at +24, not +16. Reading at +16 put padding bytes in RegionSymbol and the
+            // region (CSymbol64("default") 0x2fd38a995f615b9e when unset) in VersionLock.
+            ushort pad2 = 0; // padding[0..1]
             io.Stream(ref pad2);
+            ulong pad8 = 0; // padding[2..3] + 6 bytes of alignment before the u64 regionId
+            io.Stream(ref pad8);
             io.Stream(ref RegionSymbol);
             io.Stream(ref VersionLock);
         }
