@@ -227,6 +227,11 @@ namespace EchoRelay.Core.Server
                         isWebSocketRequest = listenerContext.Request.IsWebSocketRequest;
                         if (!isWebSocketRequest)
                         {
+                            // Answer the game's plain HTTP API calls (its apiservice_host), for ACL-authorized peers only.
+                            AccessControlListResource? apiAcl = Storage.AccessControlList.Get();
+                            if ((apiAcl?.CheckAuthorized(listenerContext.Request.RemoteEndPoint.Address) ?? false) && ServeApiRequest(listenerContext))
+                                continue;
+
                             // Return a bad request HTTP status code.
                             listenerContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                             listenerContext.Response.Close();
@@ -305,6 +310,33 @@ namespace EchoRelay.Core.Server
 
             // Fire our stopped event
             OnServerStopped?.Invoke(this);
+        }
+
+        /// <summary>
+        /// Answers the plain HTTP calls the game makes to its API host on the services port: service status and the
+        /// login queue. Paths match with or without an /api prefix.
+        /// </summary>
+        /// <returns>True if the request was answered.</returns>
+        private bool ServeApiRequest(HttpListenerContext context)
+        {
+            string path = context.Request.Url?.AbsolutePath.ToLower() ?? "";
+            Console.WriteLine($"[API] {context.Request.HttpMethod} {context.Request.Url?.AbsolutePath} from {context.Request.RemoteEndPoint}");
+            string? body = null;
+            if (path.Contains("/status/"))
+                body = "[{\"serviceid\":\"services\",\"available\":true,\"message\":\"\"},{\"serviceid\":\"news\",\"available\":true,\"message\":\"\"}]";
+            else if (path.EndsWith("/ready_at_dawn/leave_queue"))
+                body = "{\"status\":\"none\",\"estimated_wait_time\":0}";
+            else if (path.EndsWith("/ready_at_dawn/join_queue") || path.EndsWith("/ready_at_dawn/poll_queue_position"))
+                body = "{\"status\":\"queued\",\"estimated_wait_time\":30}";
+            if (body == null)
+                return false;
+            byte[] data = System.Text.Encoding.UTF8.GetBytes(body);
+            context.Response.StatusCode = (int)HttpStatusCode.OK;
+            context.Response.ContentType = "application/json";
+            context.Response.ContentLength64 = data.Length;
+            context.Response.OutputStream.Write(data, 0, data.Length);
+            context.Response.Close();
+            return true;
         }
 
         /// <summary>
