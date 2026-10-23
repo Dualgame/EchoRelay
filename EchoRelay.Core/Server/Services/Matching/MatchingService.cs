@@ -125,9 +125,10 @@ namespace EchoRelay.Core.Server.Services.Matching
             }
 
             // Check if the user is banned, if so, disallow them from matching.
-            if (account.Banned)
+            // (Read the date once: a concurrent unban can null it between the check and the message.)
+            if (account.BannedUntil is DateTime bannedUntil && bannedUntil > DateTime.UtcNow)
             {
-                await SendLobbySessionFailure(sender, LobbySessionFailureErrorCode.BannedFromLobbyGroup, $"Banned until: {account.BannedUntil!.Value:MM/dd/yyyy @ hh:mm:ss tt} (UTC)");
+                await SendLobbySessionFailure(sender, LobbySessionFailureErrorCode.BannedFromLobbyGroup, $"Banned until: {bannedUntil:MM/dd/yyyy @ hh:mm:ss tt} (UTC)");
                 return;
             }
 

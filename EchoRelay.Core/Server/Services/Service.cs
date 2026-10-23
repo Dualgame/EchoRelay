@@ -163,14 +163,25 @@ namespace EchoRelay.Core.Server.Services
                     switch (messageType)
                     {
                         case WebSocketMessageType.Binary:
-                            // Parse a packet out of this message.
-                            Packet packet = Packet.Decode(packetBuffer);
+                            // A failure while decoding or handling one packet (a malformed message, a throwing
+                            // handler or event subscriber, a send to a peer that has since gone) is logged and the
+                            // packet dropped. The connection itself stays open: dropping it would unregister a game
+                            // server or cut a client's matching socket over a single bad message.
+                            try
+                            {
+                                // Parse a packet out of this message.
+                                Packet packet = Packet.Decode(packetBuffer);
 
-                            // Fire the packet received event for this service.
-                            peer.InvokeReceiveEventHandler(packet);;
+                                // Fire the packet received event for this service.
+                                peer.InvokeReceiveEventHandler(packet);
 
-                            // Handle the packet
-                            await HandlePacket(peer, packet);
+                                // Handle the packet
+                                await HandlePacket(peer, packet);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[CORE] handler error {Name} {peer.Address}:{peer.Port} {ex}");
+                            }
                             break;
                         case WebSocketMessageType.Close:
                             // Close the connection gracefully.
