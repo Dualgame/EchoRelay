@@ -23,7 +23,9 @@ jobs:
       - uses: microsoft/setup-msbuild@v2
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: '10.0.x' }
-      - run: msbuild EchoRelay.Patch\EchoRelay.Patch.vcxproj -t:restore -p:RestorePackagesConfig=true -p:PackagesDirectory=..\packages
+      # packages.config restore ignores PackagesDirectory; SolutionDir puts Detours in <repo>\packages, where the
+      # vcxproj imports it from (..\packages)
+      - run: msbuild EchoRelay.Patch\EchoRelay.Patch.vcxproj -t:restore -p:RestorePackagesConfig=true -p:SolutionDir=${{ github.workspace }}\
       - run: msbuild EchoRelay.GameServer\EchoRelay.GameServer.vcxproj /p:Configuration=Release /p:Platform=x64
       - run: msbuild EchoRelay.Patch\EchoRelay.Patch.vcxproj /p:Configuration=Release /p:Platform=x64
       - run: dotnet build EchoRelay.App -c Release
