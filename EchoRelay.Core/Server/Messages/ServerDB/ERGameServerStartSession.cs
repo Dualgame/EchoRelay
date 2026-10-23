@@ -123,7 +123,7 @@ namespace EchoRelay.Core.Server.Messages.ServerDB
 
         public override string ToString()
         {
-            return $"{GetType().Name}(session_id={SessionId}, player_limit={PlayerLimit}, lobby_type={Type}, settings={Settings})";
+            return $"{GetType().Name}(session_id={SessionId}, channel={Channel}, player_limit={PlayerLimit}, lobby_type={Type}, settings={Settings}, entrants={EntrantDescriptors?.Length ?? 0})";
         }
         #endregion
 
@@ -181,7 +181,7 @@ namespace EchoRelay.Core.Server.Messages.ServerDB
 
             public override string ToString()
             {
-                return $"<appid={AppId}, gametype={GameType}, level={Level}>";
+                return $"<appid={AppId}, gametype={GameType}, level={Level}, extra={JsonConvert.SerializeObject(AdditionalData)}>";
             }
         }
 

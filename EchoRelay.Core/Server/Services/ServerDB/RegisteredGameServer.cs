@@ -141,6 +141,12 @@ namespace EchoRelay.Core.Server.Services.ServerDB
             => (gameType != null && AiGameTypes.Contains(gameType.Value)) || (settings?.AdditionalData?.ContainsKey("ai_difficulty") ?? false);
         /// <summary>True while the current session is an AI-teammates one (set when the session starts).</summary>
         public bool SessionIsAi { get; private set; }
+
+        /// <summary>
+        /// ECHORELAY_DIAG=1: log each start-session message (with its wire bytes) and what each join resolved to. Off by
+        /// default; the session settings can carry user-entered values, so keep these logs private.
+        /// </summary>
+        public static bool DiagnosticLogging = Environment.GetEnvironmentVariable("ECHORELAY_DIAG") == "1";
         /// <summary>
         /// Indicates whether the server is currently in a locked state.
         /// </summary>
@@ -305,7 +311,10 @@ namespace EchoRelay.Core.Server.Services.ServerDB
             }
 
             // Send the start session message to the game server.
-            await Peer.Send(new ERGameServerStartSession(SessionId.Value, SessionChannel.Value, (byte)SessionPlayerLimits.TotalPlayerLimit, SessionLobbyType, mergedSessionSettings, entrantDescriptors.ToArray()));
+            var startMessage = new ERGameServerStartSession(SessionId.Value, SessionChannel.Value, (byte)SessionPlayerLimits.TotalPlayerLimit, SessionLobbyType, mergedSessionSettings, entrantDescriptors.ToArray());
+            if (DiagnosticLogging)
+                Console.WriteLine($"[STARTSESSION] {startMessage} bytes={Convert.ToHexString(startMessage.Encode())}");
+            await Peer.Send(startMessage);
 
             // Add the new session id to the parent registry's lookup.
             Registry.RegisteredGameServersBySessionId[SessionId.Value] = this;
@@ -353,6 +362,11 @@ namespace EchoRelay.Core.Server.Services.ServerDB
 
                 // Set the session id from our game server in our matching session
                 matchingSession.MatchedSessionId = SessionId;
+
+                if (DiagnosticLogging)
+                    Console.WriteLine($"[JOINDIAG] game server {ServerId} session {SessionId}: lobby_type={SessionLobbyType} gametype=0x{SessionGameTypeSymbol ?? 0:x16} " +
+                        $"level=0x{SessionLevelSymbol ?? 0:x16} request: team_index={(short)matchingSession.TeamIndex} new_session_started={newSessionStarted} " +
+                        $"request_lobby_type={matchingSession.NewSessionLobbyType} channel={matchingSession.Channel}");
 
                 // Create our packet encoding settings
                 PacketEncoderSettings serverEncoderSettings = new PacketEncoderSettings(
