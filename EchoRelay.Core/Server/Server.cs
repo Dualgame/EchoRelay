@@ -48,6 +48,13 @@ namespace EchoRelay.Core.Server
         public SymbolCache SymbolCache { get; private set; }
 
         /// <summary>
+        /// An extra handler for plain HTTP (non-websocket) requests on the services port, asked before the built-in
+        /// API routes and only for ACL-authorized peers. Return true when the request was taken; the handler then owns
+        /// the response and may answer it asynchronously. Lets a host add routes (e.g. invite codes) without changing Core.
+        /// </summary>
+        public Func<HttpListenerContext, bool>? ExtraApiHandler { get; set; }
+
+        /// <summary>
         /// The <see cref="ConfigService"/> service hosted by this server.
         /// </summary>
         public ConfigService ConfigService { get; private set; }
@@ -321,6 +328,8 @@ namespace EchoRelay.Core.Server
         {
             string path = context.Request.Url?.AbsolutePath.ToLower() ?? "";
             Console.WriteLine($"[API] {context.Request.HttpMethod} {context.Request.Url?.AbsolutePath} from {context.Request.RemoteEndPoint}");
+            if (ExtraApiHandler != null && ExtraApiHandler(context))
+                return true;
             string? body = null;
             if (path.Contains("/status/"))
                 body = "[{\"serviceid\":\"services\",\"available\":true,\"message\":\"\"},{\"serviceid\":\"news\",\"available\":true,\"message\":\"\"}]";
