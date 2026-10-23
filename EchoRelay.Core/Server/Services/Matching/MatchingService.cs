@@ -173,8 +173,8 @@ namespace EchoRelay.Core.Server.Services.Matching
                     return;
                 }
 
-                // Obtain our session from the game server.
-                await requestedGameServer.ProcessLobbySessionRequest(sender);
+                // Obtain our session from the game server (it checks the id, an idle server and a full lobby).
+                await requestedGameServer.ProcessLobbySessionRequest(sender, matchingSession.LobbyId.Value);
                 return;
             }
 

@@ -177,7 +177,10 @@ static class Invites
                 limit, password == null ? null : Hash(code, password), now, now.AddSeconds(expiresS));
             ByCode[code] = inv;
             await g.StartSession(new EchoRelay.Core.Game.XPlatformId(), LobbyType.Private, new Guid(), gameTypeSym, levelSym, settings, limit);
-            ControlApi.AliasLink(server, g, inv.Link);
+            // A join by the link that finds the server idle (between sessions) starts the invite's own session.
+            ControlApi.AliasLink(server, g, inv.Link, () => ByCode.ContainsKey(inv.Code)
+                ? new GameServerRegistry.SessionStartParameters(LobbyType.Private, new Guid(), inv.GameTypeSym, inv.LevelSym, inv.Settings, inv.PlayerLimit)
+                : null);
             log($"[INVITES] {code} by {user}{(operatorUser != null ? " (control API)" : "")}: game server {g.ServerId} session {g.SessionId} link {inv.Link} " +
                 $"gametype {gameType} level {level ?? "(default)"} region {Regions.Name(g.RegionSymbol)}{(region != null ? $" (asked {region})" : "")} expires {inv.Expires:o}{(password != null ? " password" : "")}");
             return new JObject

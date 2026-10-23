@@ -326,7 +326,33 @@ namespace EchoRelay.Core.Server.Services.ServerDB
             // Add the new session id to the parent registry's lookup.
             Registry.RegisteredGameServersBySessionId[SessionId.Value] = this;
         }
-        public async Task ProcessLobbySessionRequest(Peer matchingPeer)
+        internal enum JoinByIdCheck { Accept, StartIdle, Stale, IdleNoStart, Full }
+        /// <summary>
+        /// Decides a join by id against this server's current state (call under the access lock). The id must be the
+        /// current session id or an alias of this server. An idle server starts only the session the alias owner
+        /// describes (<see cref="GameServerRegistry.SessionAlias.IdleStart"/>), never one built from the join's own empty
+        /// gametype and level. A full lobby refuses; lobby type and the 0-player pseudo-lock are not checked.
+        /// </summary>
+        internal (JoinByIdCheck Check, GameServerRegistry.SessionStartParameters? Start) CheckJoinById(Guid requestedId)
+        {
+            GameServerRegistry.SessionAlias? alias = SessionId == requestedId ? null : Registry.GetSessionAlias(requestedId);
+            if (SessionId != requestedId && alias?.ServerId != ServerId)
+                return (JoinByIdCheck.Stale, null);
+            if (!SessionStarted)
+            {
+                GameServerRegistry.SessionStartParameters? start = alias?.IdleStart?.Invoke();
+                return start == null ? (JoinByIdCheck.IdleNoStart, null) : (JoinByIdCheck.StartIdle, start);
+            }
+            if (SessionPlayerCount >= SessionPlayerLimits.TotalPlayerLimit)
+                return (JoinByIdCheck.Full, null);
+            return (JoinByIdCheck.Accept, null);
+        }
+
+        /// <param name="joinById">The id of a join by id (LobbyJoinSessionRequest): this server's session id or one of its
+        /// session aliases. A join by id is refused when the id is stale, when the server is idle and the id is not an alias
+        /// whose owner supplies start parameters, and when the lobby is full; no lobby-type or lock check applies (invite
+        /// sessions are private on purpose).</param>
+        public async Task ProcessLobbySessionRequest(Peer matchingPeer, Guid? joinById = null)
         {
             // Obtain the peer's matching session data.
             MatchingSession? matchingSession = matchingPeer.GetSessionData<MatchingSession>();
@@ -340,6 +366,28 @@ namespace EchoRelay.Core.Server.Services.ServerDB
             bool newSessionStarted = false;
             await _accessLock.ExecuteLocked(async () =>
             {
+                // A join by id: check it against the state under the lock (the lookup ran before it).
+                if (joinById is Guid requestedId)
+                {
+                    var (check, start) = CheckJoinById(requestedId);
+                    switch (check)
+                    {
+                        case JoinByIdCheck.Stale:
+                            await matchingPeer.Server.MatchingService.SendLobbySessionFailure(matchingPeer, LobbySessionFailureErrorCode.ServerDoesNotExist, "The requested session has ended");
+                            return;
+                        case JoinByIdCheck.IdleNoStart:
+                            await matchingPeer.Server.MatchingService.SendLobbySessionFailure(matchingPeer, LobbySessionFailureErrorCode.ServerDoesNotExist, "The requested game server is not running a session");
+                            return;
+                        case JoinByIdCheck.Full:
+                            await matchingPeer.Server.MatchingService.SendLobbySessionFailure(matchingPeer, LobbySessionFailureErrorCode.ServerIsFull, "Lobby is full");
+                            return;
+                        case JoinByIdCheck.StartIdle:
+                            await StartSessionInternal(matchingSession.UserId, start!.LobbyType, start.Channel, start.GameTypeSymbol, start.LevelSymbol, start.Settings, start.PlayerLimit);
+                            newSessionStarted = true;
+                            break;
+                    }
+                }
+
                 // If the server hasn't started a session, direct it to do so now.
                 if (!SessionStarted)
                 {
@@ -466,10 +514,8 @@ namespace EchoRelay.Core.Server.Services.ServerDB
                     // Check the player count and decide whether to accept or deny the player session.
                     if (playerSessions.Length + SessionPlayerCount > SessionPlayerLimits.TotalPlayerLimit)
                     {
-                        // Inform the game server we rejected player sessions.
-                        await Peer.Send(new ERGameServerPlayersRejected(ERGameServerPlayersRejected.PlayerSessionError.LobbyFull, playerSessions));
-
-                        // TODO: Send player sessions failure to the client.
+                        // Tell the client. The game server never saw these player sessions, so it gets no PlayersRejected.
+                        await matchingPeer.Server.MatchingService.SendLobbySessionFailure(matchingPeer, LobbySessionFailureErrorCode.ServerIsFull, "Lobby is full");
                     }
                     else
                     {
