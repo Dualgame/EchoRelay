@@ -192,6 +192,17 @@ namespace EchoRelay.Core.Test.Headless
         }
 
         [Fact]
+        public void SameHostLoopbackMatchesThisMachinesOwnAddresses()
+        {
+            // a client on the host machine logged in by its LAN address; the kit calls the host over 127.0.0.1
+            Func<IPAddress, bool> local = x => x.Equals(Pc);
+            Assert.True(InviteAuth.SameHost(Pc, IPAddress.Loopback, local));
+            Assert.True(InviteAuth.SameHost(IPAddress.Loopback, Pc, local));
+            Assert.False(InviteAuth.SameHost(Quest, IPAddress.Loopback, local));   // another machine's login
+            Assert.False(InviteAuth.SameHost(Pc, Other, local));                   // no loopback: plain equality
+        }
+
+        [Fact]
         public void AuthLoopbackMatchesLoopbackAndAnySecondLogin()
         {
             var local = new (string?, IPAddress)[] { ("OVR-ORG-1", IPAddress.Loopback), ("OVR-ORG-1", Pc) };

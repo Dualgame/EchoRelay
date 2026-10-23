@@ -189,7 +189,8 @@ static class Invites
             var inv = new Invite(code, Guid.NewGuid(), user, gameType, level, region, gameTypeSym, levelSym, regionSym, settings,
                 limit, password == null ? null : Hash(code, password), now, now.AddSeconds(expiresS)) { ServerId = g.ServerId };
             book.Add(inv);
-            await StartOn(inv, g);
+            try { await StartOn(inv, g); }
+            catch { book.Drop(inv, "session start failed"); throw; }   // no stored invite without a session
             log($"[INVITES] {code} by {user}{(asOperator ? " (control API)" : "")}: game server {g.ServerId} session {g.SessionId} link {inv.Link} " +
                 $"gametype {gameType} level {level ?? "(default)"} region {Regions.Name(g.RegionSymbol)}{(region != null ? $" (asked {region})" : "")} expires {inv.Expires:o}{(password != null ? " password" : "")}");
             return new JObject

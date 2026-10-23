@@ -165,10 +165,19 @@ static class InviteAuth
         return null;
     }
 
-    public static bool SameHost(IPAddress a, IPAddress b)
+    // A loopback caller is this machine, so it also matches a login from any of this machine's own addresses (a client
+    // on the host machine that logged in by its LAN address; `local` is injectable for tests).
+    public static bool SameHost(IPAddress a, IPAddress b, Func<IPAddress, bool>? local = null)
     {
         if (a.IsIPv4MappedToIPv6) a = a.MapToIPv4();
         if (b.IsIPv4MappedToIPv6) b = b.MapToIPv4();
-        return (IPAddress.IsLoopback(a) && IPAddress.IsLoopback(b)) || a.Equals(b);
+        if (a.Equals(b) || (IPAddress.IsLoopback(a) && IPAddress.IsLoopback(b))) return true;
+        local ??= IsLocalAddress;
+        return (IPAddress.IsLoopback(a) && local(b)) || (IPAddress.IsLoopback(b) && local(a));
     }
+
+    static bool IsLocalAddress(IPAddress x) =>
+        System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
+            .SelectMany(n => n.GetIPProperties().UnicastAddresses)
+            .Any(u => (u.Address.IsIPv4MappedToIPv6 ? u.Address.MapToIPv4() : u.Address).Equals(x));
 }
