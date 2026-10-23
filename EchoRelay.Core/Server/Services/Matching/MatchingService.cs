@@ -66,7 +66,9 @@ namespace EchoRelay.Core.Server.Services.Matching
         private async Task ProcessCreateSessionRequestv9(Peer sender, LobbyCreateSessionRequestv9 request)
         {
             // Set the matching data for our user to provide context to matching operations moving forward.
-            sender.SetSessionData(MatchingSession.FromCreateSessionCriteria(request.UserId, request.ChannelUUID, request.GameTypeSymbol, request.LevelSymbol, request.LobbyType, (TeamIndex)request.TeamIndex, request.SessionSettings));
+            var createSession = MatchingSession.FromCreateSessionCriteria(request.UserId, request.ChannelUUID, request.GameTypeSymbol, request.LevelSymbol, request.LobbyType, (TeamIndex)request.TeamIndex, request.SessionSettings);
+            createSession.RegionSymbol = unchecked((long)request.Unk0); // Unk0 = CSymbol64 of the client's -region
+            sender.SetSessionData(createSession);
 
             // Process the underlying request.
             await ProcessMatchingSession(sender, request.Session, request.UserId);
@@ -189,6 +191,7 @@ namespace EchoRelay.Core.Server.Services.Matching
                 requestedTeam: matchingSession.TeamIndex,
                 unfilledServerOnly: true
             );
+            gameServers = PreferRegion(gameServers, matchingSession.RegionSymbol);
 
             // If we only have one game server, immediately connect the peer. Otherwise, perform a ping request to determine the lowest ping server.
             if (gameServers.Count() == 1)
@@ -226,6 +229,24 @@ namespace EchoRelay.Core.Server.Services.Matching
             // Clear the matching session data for this peer.
             sender.ClearSessionData();
             await sender.Send(new TcpConnectionUnrequireEvent());
+        }
+
+        /// <summary>
+        /// Region preference for create requests. A game server registers CSymbol64 of its server_region config key /
+        /// -serverregion flag ("default" when unset); a client create carries CSymbol64 of its -region flag. Prefer exact
+        /// matches, then servers in "default", then any. A host can replace this policy through <see cref="RegionFilter"/>.
+        /// </summary>
+        public static readonly long DefaultRegionSymbol = unchecked((long)0x2fd38a995f615b9eUL); // CSymbol64("default")
+        public static Func<IEnumerable<RegisteredGameServer>, long?, IEnumerable<RegisteredGameServer>>? RegionFilter;
+        internal static IEnumerable<RegisteredGameServer> PreferRegion(IEnumerable<RegisteredGameServer> servers, long? region)
+        {
+            if (RegionFilter != null) return RegionFilter(servers, region);
+            if (region == null || region == -1 || region == 0) return servers;
+            var all = servers.ToList();
+            var exact = all.Where(x => x.RegionSymbol == region).ToList();
+            if (exact.Count > 0) return exact;
+            var fallback = all.Where(x => x.RegionSymbol == DefaultRegionSymbol).ToList();
+            return fallback.Count > 0 ? fallback : all;
         }
 
         /// <summary>
@@ -279,6 +300,7 @@ namespace EchoRelay.Core.Server.Services.Matching
                     requestedTeam: matchingSession.TeamIndex,
                     unfilledServerOnly: true
                 );
+                gameServers = PreferRegion(gameServers, matchingSession.RegionSymbol);
                 
                 // All servers should either have no session started, or match the criteria we filtered for.
                 // Depending on our matching strategy, we will first sort by population or ping, followed by the latter.

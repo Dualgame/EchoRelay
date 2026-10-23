@@ -24,6 +24,8 @@ namespace EchoRelay.Core.Server.Services.Matching
         public TeamIndex TeamIndex { get; private set; }
 
         public RegisteredGameServer? MatchedGameServer { get; set; }
+        /// <summary>The client's -region symbol from a create request (LobbyCreateSessionRequestv9.Unk0); -1 or null = none given.</summary>
+        public long? RegionSymbol { get; set; }
         public Guid? MatchedSessionId { get; set; }
         private MatchingSession(XPlatformId userId, Guid? lobbyId, Guid? channel, long? gameTypeSymbol, long? levelSymbol, LobbyType newSessionLobbyType, TeamIndex teamIndex, ERGameServerStartSession.SessionSettings sessionSettings)
         {
