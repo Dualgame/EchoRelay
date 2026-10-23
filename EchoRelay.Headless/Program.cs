@@ -243,7 +243,7 @@ catch (OperationCanceledException) { }
 return 0;
 
 
-// NAME -> CSymbol64 (lowercase-folded CRC64 "jones", poly 0x95AC9329AC4BC9B5, init -1; = scripts/csymbol64.py);
+// NAME -> CSymbol64 (lowercase-folded CRC64 "jones", poly 0x95AC9329AC4BC9B5, init -1);
 // "0x..." hex or a decimal integer is taken as the symbol itself.
 static long Sym(string s)
 {

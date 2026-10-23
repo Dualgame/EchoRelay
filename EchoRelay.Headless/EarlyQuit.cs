@@ -41,7 +41,7 @@
 //   * Control API (Control.cs): GET /early-quit/stats, /early-quit/{user}; POST /early-quit/{user}/quit|complete
 //     (synthetic rows) |clear|expire|forgive {"session"}|exempt {"on"}|lockout {"seconds": N}. Unknown account = 404
 //     (stats excepted). A forgive of the quit that set the running lockout ends it (expire path) if nothing else holds.
-//   Update +0x20 (lockout expiry) is ignored by stock clients; pc_exe_earlyquit_patch.py makes the podium show it.
+//   Update +0x20 (lockout expiry) is ignored by stock clients; a client patch can make the podium show it.
 using System.Collections.Concurrent;
 using EchoRelay.Core.Game;
 using EchoRelay.Core.Server;
