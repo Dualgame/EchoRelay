@@ -21,7 +21,7 @@ namespace EchoRelay.Core.Server.Services.Matching
             }
         }
         public ERGameServerStartSession.SessionSettings SessionSettings { get; private set; }
-        public TeamIndex TeamIndex { get; private set; }
+        public TeamIndex TeamIndex { get; set; } // settable so a game server can normalise Any for AI sessions
 
         public RegisteredGameServer? MatchedGameServer { get; set; }
         /// <summary>The client's -region symbol from a create request (LobbyCreateSessionRequestv9.Unk0); -1 or null = none given.</summary>

@@ -123,6 +123,24 @@ namespace EchoRelay.Core.Server.Services.ServerDB
         /// but the game usually only allows 15 players (3 teams x 5 players each).
         /// </summary>
         public GameTypePlayerLimits.PlayerLimits SessionPlayerLimits { get; set; }
+
+        /// <summary>
+        /// AI-teammates sessions: a join by lobby id carries team Any (-1), and the dedicated server crashes on that join
+        /// ("pending connection"). The game's own create of the same session carries team index 6, and the server
+        /// accepts that, so joiners of an AI session are handed AiJoinTeamIndex. ECHORELAY_AI_JOIN_TEAM=off disables
+        /// this, a number overrides the team.
+        /// </summary>
+        private static readonly HashSet<long> AiGameTypes = new HashSet<long>
+        {
+            unchecked((long)0xdf8258f63e878e9d), // echo_arena_private_ai
+            unchecked((long)0x888ac0cfd102345f), // echo_arena_practice_ai
+            unchecked((long)0xd54d62c40852c2f9), // echo_arena_public_ai
+        };
+        public static int AiJoinTeamIndex = int.TryParse(Environment.GetEnvironmentVariable("ECHORELAY_AI_JOIN_TEAM"), out int aiTeam) ? aiTeam : (Environment.GetEnvironmentVariable("ECHORELAY_AI_JOIN_TEAM") == "off" ? -1 : 6);
+        private static bool IsAiSession(long? gameType, ERGameServerStartSession.SessionSettings? settings)
+            => (gameType != null && AiGameTypes.Contains(gameType.Value)) || (settings?.AdditionalData?.ContainsKey("ai_difficulty") ?? false);
+        /// <summary>True while the current session is an AI-teammates one (set when the session starts).</summary>
+        public bool SessionIsAi { get; private set; }
         /// <summary>
         /// Indicates whether the server is currently in a locked state.
         /// </summary>
@@ -256,6 +274,7 @@ namespace EchoRelay.Core.Server.Services.ServerDB
             // Set our player limits according to the gametype.
             if (mergedSessionSettings.GameType != null)
                 SessionPlayerLimits = GameTypePlayerLimits.GetPlayerLimits(Peer.Server, mergedSessionSettings.GameType.Value);
+            SessionIsAi = IsAiSession(mergedSessionSettings.GameType, settings);
 
             // Provide entrant descriptors.
             List<ERGameServerStartSession.EntrantDescriptor> entrantDescriptors = new List<ERGameServerStartSession.EntrantDescriptor>();
@@ -320,6 +339,10 @@ namespace EchoRelay.Core.Server.Services.ServerDB
 
                     newSessionStarted = true;
                 }
+
+                // Hand a team-Any joiner of an AI session the team the game's own create uses (see AiJoinTeamIndex).
+                if (SessionIsAi && AiJoinTeamIndex >= 0 && matchingSession.TeamIndex == TeamIndex.Any)
+                    matchingSession.TeamIndex = (TeamIndex)AiJoinTeamIndex;
 
                 // Verify player limits.
                 if (!CheckTeamAvailability(matchingSession.TeamIndex))
@@ -559,6 +582,7 @@ namespace EchoRelay.Core.Server.Services.ServerDB
                 SessionLevelSymbol = null;
                 SessionLocked = false;
                 SessionPlayerLimits = GameTypePlayerLimits.DefaultLimits;
+                SessionIsAi = false;
                 _playerSessions.Clear();
 
                 return Task.CompletedTask;
