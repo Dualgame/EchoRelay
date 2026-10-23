@@ -251,6 +251,15 @@ namespace EchoRelay.Core.Server.Services.Matching
         }
 
         /// <summary>
+        /// Builds the (internal, external) address → ping lookup from a ping response. The response carries no port, so
+        /// several game servers on one host share a pair (the normal multi-server bed) and may each be listed: keep the
+        /// minimum ping per pair instead of throwing on the duplicate key.
+        /// </summary>
+        internal static Dictionary<(uint InternalAddress, uint ExternalAddress), uint> BuildPingLookup(IEnumerable<LobbyPingResponse.EndpointPingResult> results)
+            => results.GroupBy(x => (x.InternalAddress.ToUInt32(), x.ExternalAddress.ToUInt32()))
+                      .ToDictionary(g => g.Key, g => g.Min(x => x.PingMilliseconds));
+
+        /// <summary>
         /// Processes a <see cref="LobbyPingResponse"/>.
         /// </summary>
         /// <param name="sender">The sender of the request.</param>
@@ -287,7 +296,7 @@ namespace EchoRelay.Core.Server.Services.Matching
             else
             {
                 // Convert the ping results to a lookup
-                Dictionary<(uint InternalAddress, uint ExternalAddress), uint> pingResultLookup = request.Results.ToDictionary(x => (x.InternalAddress.ToUInt32(), x.ExternalAddress.ToUInt32()), x => x.PingMilliseconds);
+                Dictionary<(uint InternalAddress, uint ExternalAddress), uint> pingResultLookup = BuildPingLookup(request.Results);
 
                 // Resolve game servers matching this address with any other provided lookup criteria.
                 var gameServers = Server.ServerDBService.Registry.FilterGameServers(
