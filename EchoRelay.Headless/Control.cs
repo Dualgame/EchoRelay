@@ -108,7 +108,7 @@ static class ControlApi
                 ("POST", ["links", var l, "remove"]) => RemoveLink(server, l, log),
                 ("GET", ["invites"]) => Invites.List(),
                 ("POST", ["invites"]) => await Invites.CreateAsOperator(body),
-                ("POST", ["invites", var c, "revoke"]) => Invites.RevokeAsOperator(c),
+                ("POST", ["invites", var c, "revoke"]) => await Invites.RevokeAsOperator(c),
                 ("GET", ["early-quit", "stats"]) => EarlyQuit.On ? EarlyQuit.Stats() : throw new HttpError(409, "early quit is off (host --early-quit true)"),
                 ("GET", ["early-quit", var u]) => await EarlyQuitCall(u, "show", body),
                 ("POST", ["early-quit", var u, var act]) => await EarlyQuitCall(u, act, body),

@@ -26,6 +26,7 @@
 // [--invites true] [--invite-max-per-user 3] (off by default): invite codes on the SERVICES port
 //   (Invites.cs: POST /invites, GET /invites/{code}, POST /invites/{code}/revoke; uses Core Server.ExtraApiHandler). Each invite
 //   leases an idle game server for a private session plus a /links alias; the control API mirrors GET /invites.
+//   [--invite-store FILE|off] (default <storage-dir>/invites.json): invites survive a restart, unleased until resolved.
 // [--early-quit-selftest] (run the early-quit policy cases and exit)
 // [--early-quit true] [--early-quit-mode shadow|enforce] [--early-quit-policy FILE.json] [--early-quit-config FILE.json]
 //   [--early-quit-flags 0xNN] [--early-quit-detect false] [--early-quit-grace N] (off by default;
@@ -225,7 +226,13 @@ if (controlPort != null && controlPort != "0")
     };
 
 if (opt.GetValueOrDefault("invites") is "true" or "on" or "1")
-    Invites.Enable(server, Sym, Log, int.Parse(opt.GetValueOrDefault("invite-max-per-user") ?? "3"));
+    Invites.Enable(server, Sym, Log, int.Parse(opt.GetValueOrDefault("invite-max-per-user") ?? "3"),
+                   opt.GetValueOrDefault("invite-store") switch
+                   {
+                       "off" or "false" or "0" => null,
+                       string f => Path.GetFullPath(f),
+                       null => Path.Combine(storageDir, "invites.json"),
+                   });
 
 if (opt.GetValueOrDefault("early-quit") is "true" or "on" or "1")
     EarlyQuit.Enable(server, Sym, Log, opt.GetValueOrDefault("early-quit-config"),
