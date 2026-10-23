@@ -12,8 +12,8 @@ never backed. The headless host serves short invite codes for it on the **servic
 | `POST /invites/{code}/revoke` | `{"user_id"}` | `{"revoked","kicked":N}`; creator only (403 otherwise, nobody kicked), same caller check as create |
 
 The loopback control API (`--control-port`) keeps its operator routes unchanged: `POST /invites` (no login check, no
-cap), `POST /invites/{code}/revoke` (any invite; send a JSON body such as `{}`, a bodyless POST gets 411 from
-HttpListener) and `GET /invites` (adds `leased` and `players`).
+cap), `POST /invites/{code}/revoke` (any invite; the POST needs a Content-Length, e.g. curl
+`-d '{}'`, or HttpListener answers 411) and `GET /invites` (adds `leased` and `players`).
 
 - Codes are 5 characters with no `0 O 1 I`, so they can be read aloud and typed on the in-game keyboard.
 - An invite **leases** one idle game server and starts a private session on it, plus a link alias, so a
