@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 #include "pch.h"
@@ -110,8 +111,35 @@ VOID OnTcpMsgRegistrationFailure(GameServerLib* self, VOID* proxymthd, EchoVR::T
 /// This message directs the game to start loading a new game session with the provided request arguments.
 /// </summary>
 /// <returns>None</returns>
+// ERGameServerStartSession body (Core ERGameServerStartSession.Stream): session uuid (0x10), channel uuid (0x10),
+// player limit (1), entrant count (1, at 0x21), lobby type (1), pad (1), NUL-terminated settings JSON at 0x24, then
+// entrant count x 0x28 entrant descriptors. The body is forwarded to the host as is, so check it is whole first.
+static const UINT64 START_SESSION_JSON_OFFSET = 0x24;
+static const UINT64 START_SESSION_ENTRANT_SIZE = 0x28;
+static BOOL StartSessionSizeValid(const CHAR* msg, UINT64 msgSize)
+{
+	if (msg == NULL || msgSize < START_SESSION_JSON_OFFSET + 1)
+		return FALSE;
+	const CHAR* json = msg + START_SESSION_JSON_OFFSET;
+	const CHAR* end = (const CHAR*)memchr(json, 0, (SIZE_T)(msgSize - START_SESSION_JSON_OFFSET));
+	if (end == NULL)
+		return FALSE;
+	UINT64 entrants = (BYTE)msg[0x21];
+	return msgSize >= START_SESSION_JSON_OFFSET + (UINT64)(end - json) + 1 + entrants * START_SESSION_ENTRANT_SIZE;
+}
+
+// SNSLobbySessionSuccessv5 fixed part (gametype, session, channel, endpoint, team, unk, both encoder flags); the
+// sequence ids and keys follow.
+static const UINT64 SESSION_SUCCESS_V5_MIN_SIZE = 0x48;
+
 VOID OnTcpMessageStartSession(GameServerLib* self, VOID* proxymthd, EchoVR::TcpPeer sender, VOID* msg, VOID* unk, UINT64 msgSize)
 {
+	if (!StartSessionSizeValid((const CHAR*)msg, msgSize))
+	{
+		Log(EchoVR::LogLevel::Error, "[ECHORELAY.GAMESERVER] Dropped a malformed start session message (%llu bytes)", msgSize);
+		return;
+	}
+
 	// Set our session to active.
 	self->sessionActive = TRUE;
 	ResetLobbySettings();
@@ -153,6 +181,12 @@ VOID OnTcpMsgPlayersRejected(GameServerLib* self, VOID* proxymthd, EchoVR::TcpPe
 /// <returns>None</returns>
 VOID OnTcpMsgSessionSuccessv5(GameServerLib* self, VOID* proxymthd, EchoVR::TcpPeer sender, VOID* msg, VOID* unk, UINT64 msgSize)
 {
+	if (msg == NULL || msgSize < SESSION_SUCCESS_V5_MIN_SIZE)
+	{
+		Log(EchoVR::LogLevel::Error, "[ECHORELAY.GAMESERVER] Dropped a short session success message (%llu bytes)", msgSize);
+		return;
+	}
+
 	// Forward the received join session success event to the internal broadcast.
 	// NOTE: For some reason, currently the session success message for servers parses differently than clients by some offset when setting packet encoding settings.
 	// To account for this, we shift the message pointer, and its size. This is non-problematic for the delegate proxy method wrapper, which only validates minimum size.
