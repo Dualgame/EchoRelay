@@ -4,7 +4,7 @@ ServerDB can send a game server `SNSLobbySettingsResponse` (TCP form `0x5B71B22A
 length + zlib JSON). A dedicated server registers only the **local** listener for this message (local form
 `0x4CD5B97B2B97D9A3`), so without help the TCP form is dropped.
 
-`EchoRelay.GameServer` on this branch:
+`EchoRelay.GameServer` in this repository:
 
 1. inflates the JSON with the game's own zlib uncompress (RVA `0x152A910`, PC `6323983201049540`);
 2. raises the local event (8-byte zero item + plain JSON), as the retail handler does;

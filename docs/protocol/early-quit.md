@@ -39,7 +39,7 @@ Both tables must parse, or the client keeps its old ones.
 One byte, stored as `byte & 0xdd`: **a stock client clears bits 1 and 5**. Bit 5 gates the EARLY QUIT card, the quit
 notice, the 16 podium pages, scoreboard ribbons and the post-match display; bit 1 gates the lockout timer. So on an
 unmodified client only the INFO 2/2 page can show this data, and no stock menu route reaches it. Showing the rest
-needs a client patch that keeps those bits; see the companion client-features repository.
+needs a client patch that keeps those bits; see the client repository (working name `echovr-modkit`).
 
 ## SNSEarlyQuitUpdateNotification (56 bytes)
 

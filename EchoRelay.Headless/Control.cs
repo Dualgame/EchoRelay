@@ -1,5 +1,6 @@
 // Optional localhost-only HTTP control API for EchoRelay.Headless, for test tooling. Off unless
 // --control-port N is given; binds http://127.0.0.1:N/ only. JSON in/out; errors are {"error": "..."} with 400/404/500.
+// Documented for outside tools in docs/protocol/control-api.md: keep the two in agreement.
 //   GET  /health                          {"ok":true,"port":<services port>,"servers":n}
 //   GET  /servers  |  /servers/{id}       id (decimal string, the host log's id) + id_hex (the game log's "registered as"),
 //                                         peer, internal/external/port, region, version_lock, session_id (lower case,

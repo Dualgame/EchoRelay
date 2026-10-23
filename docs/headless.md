@@ -6,7 +6,7 @@ default.
 
 ```
 EchoRelay.Headless [--port 777] [--storage-dir DIR] [--game-dir DIR] [--serverdb-api-key KEY] [--redeploy]
-  [--invites true] [--invite-max-per-user 3]                      invite codes, see invites.md
+  [--invites true] [--invite-max-per-user 3]                      invite codes, see protocol/invites.md
   [--invite-store FILE|off]                                       default <storage-dir>/invites.json
   [--early-quit true] [--early-quit-mode shadow|enforce]          early quit, see protocol/early-quit.md
     [--early-quit-policy FILE.json] [--early-quit-config FILE.json] [--early-quit-detect false]
@@ -21,7 +21,7 @@ EchoRelay.Headless [--port 777] [--storage-dir DIR] [--game-dir DIR] [--serverdb
 
 - **Off by default.** `--control-port N` turns it on.
 - **Localhost only:** `http://127.0.0.1:N/`. Never expose it: it has no authentication.
-- **Routes** are listed at the top of `Control.cs`:
+- **Routes:** [protocol/control-api.md](protocol/control-api.md) (the list at the top of `Control.cs` is the implementation):
   - `GET /servers`, `/peers`, `/health`;
   - session start / kick / accept / lock;
   - lobby-settings push;

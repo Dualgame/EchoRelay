@@ -1,7 +1,7 @@
-﻿> **Derivative work — `relay-community` branch.** This branch is a derivative of
+﻿> **Derivative work.** This repository is a derivative of
 > [Xenomega/EchoRelay](https://github.com/Xenomega/EchoRelay), the original repository and author, who is
-> not the author of the changes here and does not maintain or endorse them. `main` is an untouched mirror of
-> upstream (tag `upstream-2023-11`). What this branch adds is listed in [CREDITS.md](CREDITS.md) and
+> not the author of the changes here and does not maintain or endorse them. Tag `upstream-2023-11` is the
+> untouched upstream commit; `git diff upstream-2023-11..main` is the whole derivative. What it adds is listed in [CREDITS.md](CREDITS.md) and
 > [docs/](docs/). The original disclaimer below still applies: this is for personal research on a LAN, not
 > for publicly hosting matches.
 

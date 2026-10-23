@@ -4,7 +4,7 @@
   key `server_region` or `-serverregion <code>` on its command line, else `"default"`.
 - **Client side.** A client create carries `CSymbol64(-region <code>)` in `LobbyCreateSessionRequestv9.Unk0`.
 
-**The fix on this branch.** Core used to read the region 8 bytes early. The game server's
+**The fix here.** Core used to read the region 8 bytes early. The game server's
 `ERLobbyRegistrationRequest` is naturally aligned, so `regionId` is at +24. The old read put the region into
 `VersionLock`.
 

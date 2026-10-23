@@ -1,7 +1,7 @@
 # Licenses
 
 This branch follows its upstream, [Xenomega/EchoRelay](https://github.com/Xenomega/EchoRelay): **no license file**.
-Nothing on this branch adds a license, to upstream code or to the files it adds (`EchoRelay.Headless/`, `docs/`,
+Nothing in this repository adds a license, to upstream code or to the files it adds (`EchoRelay.Headless/`, `docs/`,
 `deploy/`). As the upstream README asks, derivative work is labelled as such and credits the original repository.
 
 ## Purpose

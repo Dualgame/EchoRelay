@@ -3,7 +3,7 @@
 The final Echo VR builds ship a CREATE GAME / JOIN VIA CODE wizard (`ui_mnu_deeplinking_*`) that the retail services
 never backed. The headless host serves short invite codes for it on the **services port** (LAN-reachable), through
 `Server.ExtraApiHandler`. It is ACL-gated like every other services request. A client-side plugin
-(companion client-features repository) connects the wizard to these routes.
+(the client repository, working name `echovr-modkit`) connects the wizard to these routes.
 
 | route | body / query | result |
 |---|---|---|
