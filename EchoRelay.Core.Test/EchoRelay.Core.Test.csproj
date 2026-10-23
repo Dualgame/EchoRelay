@@ -26,6 +26,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EchoRelay.Core\EchoRelay.Core.csproj" />
+    <!-- the host's invite table (InviteBook.cs) and its caller binding -->
+    <ProjectReference Include="..\EchoRelay.Headless\EchoRelay.Headless.csproj" />
   </ItemGroup>
 
 </Project>

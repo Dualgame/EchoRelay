@@ -8,6 +8,10 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
+    <!-- InviteBook / InviteAuth unit tests -->
+    <InternalsVisibleTo Include="EchoRelay.Core.Test" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\EchoRelay.Core\EchoRelay.Core.csproj" />
   </ItemGroup>
 </Project>
