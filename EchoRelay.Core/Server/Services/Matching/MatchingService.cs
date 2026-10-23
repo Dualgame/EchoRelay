@@ -11,6 +11,12 @@ namespace EchoRelay.Core.Server.Services.Matching
 {
     public class MatchingService : Service
     {
+        /// <summary>
+        /// Asked before a find / join is matched. Return null to let it through,
+        /// or a failure code + message (<= 71 chars) to refuse it, e.g. an early-quit lockout of public matchmaking.
+        /// </summary>
+        public Func<Peer, MatchingSession, (LobbySessionFailureErrorCode Code, string Message)?>? MatchingGate { get; set; }
+
         public MatchingService(Server server) : base(server, "MATCHING")
         {
         }
@@ -131,6 +137,13 @@ namespace EchoRelay.Core.Server.Services.Matching
             if (matchingSession == null)
             {
                 await SendLobbySessionFailure(sender, LobbySessionFailureErrorCode.InternalError, "Cannot process session request, no matching session exists");
+                return;
+            }
+
+            // Optional host gate (e.g. an early-quit lockout).
+            if (MatchingGate?.Invoke(sender, matchingSession) is { } refusal)
+            {
+                await SendLobbySessionFailure(sender, refusal.Code, refusal.Message);
                 return;
             }
 
