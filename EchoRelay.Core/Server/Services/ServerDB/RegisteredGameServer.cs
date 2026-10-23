@@ -240,19 +240,21 @@ namespace EchoRelay.Core.Server.Services.ServerDB
             // Otherwise check availability.
             return SessionPlayerLimits.CheckTeamAvailability(_playerSessions.Values.Select(x => x.requestedTeam).ToArray(), requestedTeam);
         }
-        public async Task StartSession(XPlatformId requester, ERGameServerStartSession.LobbyType lobbyType, Guid channel, long? gameTypeSymbol, long? levelSymbol, ERGameServerStartSession.SessionSettings? settings)
+        /// <param name="playerLimit">Optional total player limit for this session, in place of the gametype's (a host-started
+        /// private match, e.g. an invite). The gametype's fixed active-participant target is kept.</param>
+        public async Task StartSession(XPlatformId requester, ERGameServerStartSession.LobbyType lobbyType, Guid channel, long? gameTypeSymbol, long? levelSymbol, ERGameServerStartSession.SessionSettings? settings, int? playerLimit = null)
         {
             // Lock throughout this method.
             await _accessLock.ExecuteLocked(async () =>
             {
                 // Start the session.
-                await StartSessionInternal(requester, lobbyType, channel, gameTypeSymbol, levelSymbol, settings);
+                await StartSessionInternal(requester, lobbyType, channel, gameTypeSymbol, levelSymbol, settings, playerLimit);
             });
 
             // Invoke the session state change event.
             OnSessionStateChanged?.Invoke(this);
         }
-        private async Task StartSessionInternal(XPlatformId requester, ERGameServerStartSession.LobbyType lobbyType, Guid channel, long? gameTypeSymbol, long? levelSymbol, ERGameServerStartSession.SessionSettings? settings)
+        private async Task StartSessionInternal(XPlatformId requester, ERGameServerStartSession.LobbyType lobbyType, Guid channel, long? gameTypeSymbol, long? levelSymbol, ERGameServerStartSession.SessionSettings? settings, int? playerLimit = null)
         {
             // Remove the previous session id from the parent registry's lookup.
             if (SessionId != null)
@@ -280,6 +282,12 @@ namespace EchoRelay.Core.Server.Services.ServerDB
             // Set our player limits according to the gametype.
             if (mergedSessionSettings.GameType != null)
                 SessionPlayerLimits = GameTypePlayerLimits.GetPlayerLimits(Peer.Server, mergedSessionSettings.GameType.Value);
+            if (playerLimit != null)
+            {
+                int total = Math.Clamp(playerLimit.Value, 1, 255);
+                int? target = SessionPlayerLimits.FixedActiveGameParticipantTarget;
+                SessionPlayerLimits = new GameTypePlayerLimits.PlayerLimits(total, target == null ? null : Math.Min(target.Value, total));
+            }
             SessionIsAi = IsAiSession(mergedSessionSettings.GameType, settings);
 
             // Provide entrant descriptors.
