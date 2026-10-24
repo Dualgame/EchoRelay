@@ -7,6 +7,9 @@
 > its client mods:** the client mods modify the game client (in memory on PC, a re-signed library copy on Quest), and the
 > Quest build patches the platform login prerequisite so the game can log in to your own host. Read the "Entitlement
 > checks HAVE NOT been modified" and "clients do not require any code modifications" lines below as upstream's, not ours.
+> **Requirements for this fork:** the .NET 10 SDK; target builds PC `6323983201049540` / Quest `6528386917200980`;
+> no prebuilt binaries (the Releases and version lines below are upstream's): build per
+> [docs/headless.md](docs/headless.md).
 
 # EchoRelay
 
