@@ -2,8 +2,11 @@
 > [Xenomega/EchoRelay](https://github.com/Xenomega/EchoRelay), the original repository and author, who is
 > not the author of the changes here and does not maintain or endorse them. Tag `upstream-2023-11` is the
 > untouched upstream commit; `git diff upstream-2023-11..main` is the whole derivative. What it adds is listed in [CREDITS.md](CREDITS.md) and
-> [docs/](docs/); open work and known limits are in [CONTINUING.md](CONTINUING.md). The original disclaimer below still applies: this is for personal research on a LAN, not
-> for publicly hosting matches.
+> [docs/](docs/); open work and known limits are in [CONTINUING.md](CONTINUING.md). The original disclaimer below describes the upstream project. Its purpose still applies: this is for personal
+> research on a LAN, not for publicly hosting matches. **Two of its statements do not hold for this fork together with
+> its client mods:** the client mods modify the game client (in memory on PC, a re-signed library copy on Quest), and the
+> Quest build patches the platform login prerequisite so the game can log in to your own host. Read the "Entitlement
+> checks HAVE NOT been modified" and "clients do not require any code modifications" lines below as upstream's, not ours.
 
 # EchoRelay
 
