@@ -37,7 +37,7 @@ Each client's `_local/config.json` is filled in by the user, with this host's ad
 | `transactionservice_host` | `ws://HOST:PORT/transaction` |
 | `publisher_lock` | `rad15_live` |
 
-`HOST` must be an address the client can reach on your LAN. The client mods' install pages say where the file goes on
+`HOST` must be an address the client can reach on your LAN. The client mods' install pages ([Dualgame/echovr-modkit](https://github.com/Dualgame/echovr-modkit), `docs/`) say where the file goes on
 PC and on Quest.
 
 ## All options
