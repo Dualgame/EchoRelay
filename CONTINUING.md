@@ -2,7 +2,8 @@
 
 Open items, known limits and where to start for the host side of this fork: the headless host, the invite service,
 early quit, matching and the game-server plugin. Client-side items (the mod loader, the client plugins, the Quest APK
-builder, the menu cards) live with the client repository. This is a research / educational project for LAN use; it does
+builder, the menu cards) live with the client repository,
+[Dualgame/echovr-modkit](https://github.com/Dualgame/echovr-modkit). This is a research / educational project for LAN use; it does
 not host public matches.
 
 Every item has an **entry point** (a file and function in this repository) and an **acceptance test**. Measurements

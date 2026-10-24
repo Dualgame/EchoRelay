@@ -13,4 +13,4 @@
   - GameServer: lobby-settings relay
   - `EchoRelay.Headless`: a console host with invite codes, early-quit standing and a local control API
 
-This branch is for research and educational purposes; see [docs/LICENSES.md](docs/LICENSES.md).
+This repository is for research and educational purposes; see [docs/LICENSES.md](docs/LICENSES.md).

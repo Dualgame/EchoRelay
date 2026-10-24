@@ -111,3 +111,15 @@ dotnet publish EchoRelay.Headless -c Release -r linux-arm64 --self-contained -p:
 ```
 
 `linux-x64` and `win-x64` work the same way. `deploy/` has a systemd unit for a Raspberry Pi.
+
+The game-server side is native Windows code (Visual Studio 2022 or its Build Tools, C++ x64), built as the CI does:
+
+```
+msbuild EchoRelay.Patch\EchoRelay.Patch.vcxproj -t:restore -p:RestorePackagesConfig=true -p:SolutionDir=%CD%\
+msbuild EchoRelay.GameServer\EchoRelay.GameServer.vcxproj /p:Configuration=Release /p:Platform=x64
+msbuild EchoRelay.Patch\EchoRelay.Patch.vcxproj /p:Configuration=Release /p:Platform=x64
+```
+
+Copy `EchoRelay.Patch\x64\Release\EchoRelay.Patch.dll` as `dbgcore.dll` and
+`EchoRelay.GameServer\x64\Release\EchoRelay.GameServer.dll` as `pnsradgameserver.dll` into the game server's
+`bin\win10\`, next to `echovr.exe`. No binaries are published: build them yourself.

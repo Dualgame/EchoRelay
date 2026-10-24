@@ -1,5 +1,5 @@
 [Unit]
-Description=EchoRelay services, C# headless host (relay-community)
+Description=EchoRelay services, C# headless host (EchoRelay fork)
 After=network-online.target
 Wants=network-online.target
 

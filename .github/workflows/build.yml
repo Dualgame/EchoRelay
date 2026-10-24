@@ -14,8 +14,6 @@ jobs:
           for rid in linux-arm64 linux-x64 win-x64; do
             dotnet publish EchoRelay.Headless -c Release -r $rid --self-contained -p:PublishSingleFile=true -o out/$rid
           done
-      - uses: actions/upload-artifact@v4
-        with: { name: echorelay-headless, path: out/ }
   native:
     runs-on: windows-latest
     steps:
@@ -29,9 +27,3 @@ jobs:
       - run: msbuild EchoRelay.GameServer\EchoRelay.GameServer.vcxproj /p:Configuration=Release /p:Platform=x64
       - run: msbuild EchoRelay.Patch\EchoRelay.Patch.vcxproj /p:Configuration=Release /p:Platform=x64
       - run: dotnet build EchoRelay.App -c Release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: echorelay-native
-          path: |
-            EchoRelay.GameServer/x64/Release/EchoRelay.GameServer.dll
-            EchoRelay.Patch/x64/Release/EchoRelay.Patch.dll
