@@ -16,8 +16,9 @@ EchoRelay.Headless --port 777 --storage-dir ./storage --game-dir "<Echo VR insta
 - `--storage-dir`: where accounts, configs, the access control list and the invite and early-quit stores live
   (default `./storage`).
 - `--game-dir`: used only for the initial deployment, which runs when the storage holds none of its critical files
-  (access control list, channel info, login settings, symbol cache). The symbol cache is then filled from the files in
-  that folder (top level only). It is optional and is not read on later starts. If only some of the critical files are
+  (access control list, channel info, login settings, symbol cache). Point it at the folder that holds `echovr.exe`:
+  the symbol cache is then filled from the `.exe` and `.dll` files in that folder (top level only). It is optional
+  and is not read on later starts. If only some of the critical files are
   missing, Headless stops and asks for `--redeploy`, which clears all storage except accounts.
 - `--invites true`: the `/invites` routes the client invite mod calls ([protocol/invites.md](protocol/invites.md)).
 - `--early-quit true`: the early-quit messages, in shadow mode by default ([protocol/early-quit.md](protocol/early-quit.md)).
